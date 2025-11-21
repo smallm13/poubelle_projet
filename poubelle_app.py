@@ -4,14 +4,6 @@ from tensorflow.keras.models import load_model
 import numpy as np
 from PIL import Image
 import os
-import gc
-
-# -------------------------
-# Configuration TensorFlow (Optimisation ressources)
-# -------------------------
-tf.config.set_visible_devices([], 'GPU')  # Force CPU si GPU pose problème
-tf.config.threading.set_inter_op_parallelism_threads(1)
-tf.config.threading.set_intra_op_parallelism_threads(1)
 
 # -------------------------
 # Configuration de la page
@@ -59,17 +51,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------
-# 1️⃣ Charger le modèle (MISE EN CACHE)
+# 1️⃣ Charger le modèle
 # -------------------------
 MODEL_PATH = "poubelle_model_effnet.keras"
 
-@st.cache_resource
 def load_my_model():
-    """Charge le modèle une seule fois et le met en cache"""
     if os.path.exists(MODEL_PATH):
         try:
-            model = load_model(MODEL_PATH, compile=False)  # compile=False pour économiser RAM
-            st.success("✅ Modèle chargé avec succès")
+            model = load_model(MODEL_PATH)
             return model
         except Exception as e:
             st.error(f"❌ Erreur lors du chargement du modèle : {e}")
@@ -77,6 +66,8 @@ def load_my_model():
     else:
         st.error(f"❌ Le fichier {MODEL_PATH} est introuvable.")
         return None
+
+model = load_my_model()
 
 # Classes binaires
 class_names = ["pleine", "vide"]
@@ -89,7 +80,7 @@ st.markdown('<div class="main-header">🗑️ Détection de Poubelle</div>', uns
 # Section d'upload
 st.markdown('<div class="upload-section">', unsafe_allow_html=True)
 st.markdown("### 📤 Téléversez une image de poubelle")
-st.markdown("Formats supportés : JPG, JPEG, PNG (Max 5MB)")
+st.markdown("Formats supportés : JPG, JPEG, PNG")
 
 uploaded_file = st.file_uploader(
     "Choisir une image...", 
@@ -101,75 +92,51 @@ st.markdown('</div>', unsafe_allow_html=True)
 # -------------------------
 # Traitement et prédiction
 # -------------------------
-if uploaded_file is not None:
-    # Vérifier la taille du fichier
-    file_size = uploaded_file.size / (1024 * 1024)  # Taille en MB
-    if file_size > 5:
-        st.error("❌ L'image est trop grande (> 5MB). Veuillez réduire sa taille.")
+if uploaded_file is not None and model is not None:
+    # Afficher l'image
+    img = Image.open(uploaded_file).convert("RGB")
+    st.image(img, caption="Image analysée", use_container_width=True)
+
+    with st.spinner('🔄 Analyse en cours...'):
+        # Prétraitement de l'image
+        img_array = np.array(img.resize((224, 224)))
+        img_array = np.expand_dims(img_array, axis=0)
+        img_array = tf.keras.applications.efficientnet.preprocess_input(img_array)
+
+        # Prédiction
+        pred = model.predict(img_array, verbose=0)[0][0]
+        confidence = pred if pred >= 0.5 else 1 - pred
+        predicted_class = class_names[1] if pred >= 0.5 else class_names[0]
+
+    # Affichage des résultats
+    st.markdown("### 📊 Résultat")
+
+    # Badge de résultat
+    if predicted_class == "pleine":
+        badge_color = "🔴"
+        background_color = "#ff4444"
+        recommendation = "🚨 Il est temps de vider la poubelle !"
     else:
-        # Charger le modèle
-        model = load_my_model()
-        
-        if model is not None:
-            # Afficher l'image (taille réduite pour l'affichage)
-            img = Image.open(uploaded_file).convert("RGB")
-            
-            # Réduire la taille d'affichage si l'image est trop grande
-            max_display_size = (800, 800)
-            img.thumbnail(max_display_size, Image.Resampling.LANCZOS)
-            
-            st.image(img, caption="Image analysée", use_container_width=True)
+        badge_color = "🟢" 
+        background_color = "#00C851"
+        recommendation = "✅ La poubelle peut encore être utilisée !"
 
-            with st.spinner('🔄 Analyse en cours...'):
-                try:
-                    # Prétraitement de l'image
-                    img_resized = img.resize((224, 224))
-                    img_array = np.array(img_resized, dtype=np.float32)
-                    img_array = np.expand_dims(img_array, axis=0)
-                    img_array = tf.keras.applications.efficientnet.preprocess_input(img_array)
+    st.markdown(f"""
+    <div style='text-align: center;'>
+        <div class='result-badge' style='background-color: {background_color}; color: white;'>
+            {badge_color} Poubelle {predicted_class.upper()}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-                    # Prédiction
-                    pred = model.predict(img_array, verbose=0)[0][0]
-                    confidence = pred if pred >= 0.5 else 1 - pred
-                    predicted_class = class_names[1] if pred >= 0.5 else class_names[0]
+    st.markdown(f"**Confiance : {confidence:.1%}**")
+    st.markdown(f"<div class='confidence-fill' style='width: {confidence*100}%; background-color: {background_color};'></div>", unsafe_allow_html=True)
 
-                    # Libérer la mémoire
-                    del img_array, img_resized
-                    gc.collect()
+    st.markdown(f"**Score :** `{pred:.3f}`")
+    st.info(recommendation)
 
-                    # Affichage des résultats
-                    st.markdown("### 📊 Résultat")
-
-                    # Badge de résultat
-                    if predicted_class == "pleine":
-                        badge_color = "🔴"
-                        background_color = "#ff4444"
-                        recommendation = "🚨 Il est temps de vider la poubelle !"
-                    else:
-                        badge_color = "🟢" 
-                        background_color = "#00C851"
-                        recommendation = "✅ La poubelle peut encore être utilisée !"
-
-                    st.markdown(f"""
-                    <div style='text-align: center;'>
-                        <div class='result-badge' style='background-color: {background_color}; color: white;'>
-                            {badge_color} Poubelle {predicted_class.upper()}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    st.markdown(f"**Confiance : {confidence:.1%}**")
-                    st.markdown(f"<div class='confidence-fill' style='width: {confidence*100}%; background-color: {background_color};'></div>", unsafe_allow_html=True)
-
-                    st.markdown(f"**Score :** `{pred:.3f}`")
-                    st.info(recommendation)
-                    
-                except Exception as e:
-                    st.error(f"❌ Erreur lors de la prédiction : {e}")
-                    # Libérer la mémoire en cas d'erreur
-                    gc.collect()
-        else:
-            st.error("❌ Le modèle n'est pas disponible.")
+elif uploaded_file is not None and model is None:
+    st.error("❌ Le modèle n'est pas disponible.")
 
 # -------------------------
 # Bouton de téléchargement du modèle
@@ -196,7 +163,7 @@ with st.expander("ℹ️ Informations techniques"):
     st.markdown("""
     **Comment utiliser :**
     1. 📸 Prenez une photo de votre poubelle
-    2. ⬆️ Téléversez l'image (max 5MB)
+    2. ⬆️ Téléversez l'image
     3. 🤖 L'IA détecte si elle est vide ou pleine
 
     **Spécifications :**
@@ -204,11 +171,6 @@ with st.expander("ℹ️ Informations techniques"):
     - Type : Classification binaire
     - Taille d'entrée : 224x224 pixels
     - Format : .keras (TensorFlow)
-    
-    **Optimisations :**
-    - Mise en cache du modèle
-    - Traitement CPU uniquement
-    - Gestion automatique de la mémoire
     """)
 
 # -------------------------
