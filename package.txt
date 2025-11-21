@@ -1,0 +1,25 @@
+from setuptools import setup, find_packages
+
+setup(
+    name="detection_poubelle",
+    version="0.1.0",
+    author="Mohamed Diallo",
+    author_email="mohameddiallo718@gmail.com",
+    description="Application Streamlit pour la détection de poubelles pleines ou vides avec EfficientNet",
+    packages=find_packages(),
+    include_package_data=True,
+    install_requires=[
+        "streamlit==1.30.0",
+        "tensorflow==2.15.0",
+        "numpy==1.25.0",
+        "pillow==10.0.0",
+        "scikit-learn==1.3.0",
+        "matplotlib==3.8.0"
+    ],
+    entry_points={
+        "console_scripts": [
+            "run_poubelle_app=app:main",  # si tu veux ajouter une fonction main() dans app.py
+        ],
+    },
+    python_requires=">=3.10",
+)

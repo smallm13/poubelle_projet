@@ -66,7 +66,7 @@ st.markdown("""
 # -------------------------
 # 1️⃣ Charger le modèle
 # -------------------------
-MODEL_PATH = "poubelle_model.keras"
+MODEL_PATH = "poubelle_model_effnet.keras"
 
 @st.cache_resource
 def load_my_model():
