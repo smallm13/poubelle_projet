@@ -47,19 +47,6 @@ st.markdown("""
         margin: 1rem 0;
         display: inline-block;
     }
-    .refresh-button {
-        background-color: #2E86AB;
-        color: white;
-        border: none;
-        padding: 0.7rem 1.5rem;
-        border-radius: 10px;
-        font-size: 1rem;
-        cursor: pointer;
-        transition: background-color 0.3s;
-    }
-    .refresh-button:hover {
-        background-color: #1a5a7a;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -84,13 +71,6 @@ model = load_my_model()
 
 # Classes binaires
 class_names = ["pleine", "vide"]
-
-# -------------------------
-# Fonction pour réinitialiser
-# -------------------------
-def reset_app():
-    st.session_state.clear()
-    st.rerun()
 
 # -------------------------
 # Interface principale
@@ -154,17 +134,6 @@ if uploaded_file is not None and model is not None:
 
     st.markdown(f"**Score :** `{pred:.3f}`")
     st.info(recommendation)
-
-    # Bouton de réinitialisation
-    st.markdown("---")
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.button(
-            "🔄 Nouvelle analyse", 
-            on_click=reset_app,
-            use_container_width=True,
-            type="primary"
-        )
 
 elif uploaded_file is not None and model is None:
     st.error("❌ Le modèle n'est pas disponible.")
