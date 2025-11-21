@@ -165,6 +165,7 @@ with st.expander("ℹ️ Informations techniques"):
     1. 📸 Prenez une photo de votre poubelle
     2. ⬆️ Téléversez l'image
     3. 🤖 L'IA détecte si elle est vide ou pleine
+    4.    REACTUALISER LA PAGE
 
     **Spécifications :**
     - Architecture : EfficientNetB0
