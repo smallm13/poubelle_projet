@@ -26,7 +26,6 @@ st.markdown("""
         margin-bottom: 2rem;
         font-weight: bold;
     }
-
     .confidence-fill {
         height: 100%;
         border-radius: 10px;
@@ -48,18 +47,6 @@ st.markdown("""
         margin: 1rem 0;
         display: inline-block;
     }
-    .download-btn {
-        background: linear-gradient(45deg, #00C851, #007E33);
-        color: white;
-        border: none;
-        padding: 0.7rem 1.5rem;
-        border-radius: 20px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        margin: 1rem 0;
-        width: 100%;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -68,13 +55,16 @@ st.markdown("""
 # -------------------------
 MODEL_PATH = "poubelle_model_effnet.keras"
 
-@st.cache_resource
 def load_my_model():
-    try:
-        model = load_model(MODEL_PATH)
-        return model
-    except Exception as e:
-        st.error(f"❌ Erreur lors du chargement du modèle : {e}")
+    if os.path.exists(MODEL_PATH):
+        try:
+            model = load_model(MODEL_PATH)
+            return model
+        except Exception as e:
+            st.error(f"❌ Erreur lors du chargement du modèle : {e}")
+            return None
+    else:
+        st.error(f"❌ Le fichier {MODEL_PATH} est introuvable.")
         return None
 
 model = load_my_model()
@@ -91,7 +81,7 @@ st.markdown('<div class="main-header">🗑️ Détection de Poubelle</div>', uns
 st.markdown('<div class="upload-section">', unsafe_allow_html=True)
 st.markdown("### 📤 Téléversez une image de poubelle")
 st.markdown("Formats supportés : JPG, JPEG, PNG")
-    
+
 uploaded_file = st.file_uploader(
     "Choisir une image...", 
     type=["jpg", "jpeg", "png"],
@@ -107,14 +97,12 @@ if uploaded_file is not None and model is not None:
     img = Image.open(uploaded_file).convert("RGB")
     st.image(img, caption="Image analysée", use_container_width=True)
 
-    
     with st.spinner('🔄 Analyse en cours...'):
         # Prétraitement de l'image
-        img_processed = img.resize((224, 224))
-        img_array = np.array(img_processed)
+        img_array = np.array(img.resize((224, 224)))
         img_array = np.expand_dims(img_array, axis=0)
         img_array = tf.keras.applications.efficientnet.preprocess_input(img_array)
-        
+
         # Prédiction
         pred = model.predict(img_array, verbose=0)[0][0]
         confidence = pred if pred >= 0.5 else 1 - pred
@@ -122,11 +110,8 @@ if uploaded_file is not None and model is not None:
 
     # Affichage des résultats
     st.markdown("### 📊 Résultat")
-    
-    # Carte de résultat
-    st.markdown('<div class="prediction-card">', unsafe_allow_html=True)
-    
-    # Badge de résultat avec couleur
+
+    # Badge de résultat
     if predicted_class == "pleine":
         badge_color = "🔴"
         background_color = "#ff4444"
@@ -135,7 +120,7 @@ if uploaded_file is not None and model is not None:
         badge_color = "🟢" 
         background_color = "#00C851"
         recommendation = "✅ La poubelle peut encore être utilisée !"
-        
+
     st.markdown(f"""
     <div style='text-align: center;'>
         <div class='result-badge' style='background-color: {background_color}; color: white;'>
@@ -143,20 +128,11 @@ if uploaded_file is not None and model is not None:
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Jauge de confiance
+
     st.markdown(f"**Confiance : {confidence:.1%}**")
-    st.markdown('<div class="confidence-bar">', unsafe_allow_html=True)
-    st.markdown(f"""
-    <div class='confidence-fill' style='width: {confidence*100}%; background-color: {background_color};'></div>
-    """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Score numérique
+    st.markdown(f"<div class='confidence-fill' style='width: {confidence*100}%; background-color: {background_color};'></div>", unsafe_allow_html=True)
+
     st.markdown(f"**Score :** `{pred:.3f}`")
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Recommandation
     st.info(recommendation)
 
 elif uploaded_file is not None and model is None:
@@ -167,13 +143,12 @@ elif uploaded_file is not None and model is None:
 # -------------------------
 st.markdown("---")
 st.markdown("### 📁 Télécharger le modèle")
-
 if os.path.exists(MODEL_PATH):
     with open(MODEL_PATH, "rb") as file:
-        btn = st.download_button(
+        st.download_button(
             label="📥 Télécharger le modèle IA",
             data=file,
-            file_name="poubelle_model.keras",
+            file_name="poubelle_model_effnet.keras",
             mime="application/octet-stream",
             help="Téléchargez le modèle pour l'utiliser localement",
             use_container_width=True
@@ -190,7 +165,7 @@ with st.expander("ℹ️ Informations techniques"):
     1. 📸 Prenez une photo de votre poubelle
     2. ⬆️ Téléversez l'image
     3. 🤖 L'IA détecte si elle est vide ou pleine
-    
+
     **Spécifications :**
     - Architecture : EfficientNetB0
     - Type : Classification binaire
